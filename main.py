@@ -5,20 +5,17 @@ from matplotlib import colors
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import animation
 
-# Define universal gravitation constant
 G = 6.67408e-11  # N-m2/kg2
-
-# Reference quantities
-m_nd = 1.989e+30  # kg #mass of the sun
-r_nd = 5.326e+12  # m #distance between stars in Alpha Centauri
-v_nd = 30000  # m/s #relative velocity of earth around the sun
-t_nd = 79.91 * 365 * 24 * 3600 * 0.51  # s #orbital period of Alpha Centauri
+m_nd = 1.989e+30  # kg
+r_nd = 5.326e+12  # m
+v_nd = 30000  # m/s
+t_nd = 79.91 * 365.25 * 24 * 3600  # s
 
 # Net constants
 K1 = G * t_nd * m_nd / (r_nd ** 2 * v_nd)
 K2 = v_nd * t_nd / r_nd
 
-n = 2
+n = 3
 dim = 3
 bodies = np.empty(n,
                   dtype=[('pos', float, (dim,)),
@@ -29,26 +26,27 @@ bodies = np.empty(n,
 bodies['mass'] = np.array([
     1.1,
     0.907,
-    # 0.2
+    0.825
 ])
-bodies['size'] = bodies['mass'] * 10
+bodies['size'] = bodies['mass'] * 70
+
 bodies['color'] = [
     colors.to_rgba('darkblue'),
     colors.to_rgba('red'),
-    # colors.to_rgba('green')
+    colors.to_rgba('green')
 ]
 
 bodies['pos'] = np.array([
-    [-0.05, 0, 0],
-    [0.05, 0, 0],
-    # [0, 0.5, 0]
+    [-0.5, 1, 0],
+    [0.5, 0, 0.5],
+    [0, 0.5, 0]
 ])
 r_com = bodies['mass'].dot(bodies['pos']) / bodies['mass'].sum()
 
 bodies['vel'] = np.array([
     [0.01, 0.01, 0],
     [-0.05, 0, -0.1],
-    # [0, 0, 0]
+    [0, 0, 0]
 ])
 v_com = bodies['mass'].dot(bodies['vel']) / bodies['mass'].sum()
 
@@ -84,27 +82,50 @@ def euler_ode_solver(derivs, w_init, t, **kwargs):
     return np.array(w)
 
 
-def update(frame, graphs, orbits):
+def update(frame, ax, graphs, orbits, scat):
+    j = 2 * frame + 1
+    tail = 200
+    start = max(0, j - tail)
+    bodies['pos'] = orbits[j - 1]
+
     for i in range(n):
-        graphs[i].set_data(*orbits[:frame, i, 0:2].T)
-        graphs[i].set_3d_properties(orbits[:frame, i, 2])
+        graphs[i].set_data(*orbits[start:j, i, 0:2].T)
+        graphs[i].set_3d_properties(orbits[start:j, i, 2])
+
+    # print(orbits[start:j, :, :])
+    ax.set_xlim(orbits[0:j, :, 0].min(), orbits[0:j, :, 0].max())
+    ax.set_ylim(orbits[0:j, :, 1].min(), orbits[0:j, :, 1].max())
+    ax.set_zlim(orbits[0:j, :, 2].min(), orbits[0:j, :, 2].max())
+
+    # scat._offsets3d = bodies['pos'].T
+    scat[0].remove()
+    scat[0] = ax.scatter(*bodies['pos'].T, s=bodies['size'], c=bodies['color'], depthshade=False)
 
 
 def main():
     w_init = np.concatenate((bodies['pos'].flatten(), bodies['vel'].flatten()))
-    time_span = np.linspace(0, 10, 5000)
-    w = euler_ode_solver(motion_ode, w_init, time_span, m=bodies['mass'], n=n, dim=dim)
+    time_span = np.linspace(0, 12, 1000)
+    # w = euler_ode_solver(motion_ode, w_init, time_span, m=bodies['mass'], n=n, dim=dim)
     # sol = sci.integrate.solve_ivp(motion_ode, (0, 10), w_init, t_eval=time_span,
     #                               args=(bodies['mass'], n, dim))
     # w = sol.y
+    w = sci.integrate.odeint(motion_ode, w_init, time_span, args=(bodies['mass'], n, dim), tfirst=True)
+    w = np.array(w)
     print(w)
 
-    fig = plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(15, 15))
     ax = fig.add_subplot(111, projection="3d")
 
     scat = ax.scatter(*bodies['pos'].T, s=bodies['size'], c=bodies['color'], depthshade=False)
 
     orbits = w[:, :dim * n].reshape((-1, n, dim))
+
+    orbits_com = orbits.dot(bodies['mass']) / bodies['mass'].sum()
+
+    # print(orbits.shape)
+    # print(orbits_com.shape)
+
+    # orbits -= orbits_com[:, :, None]
 
     graphs = []
     for i in range(n):
@@ -117,11 +138,12 @@ def main():
     # ax.set_title("visualization of orbits of stars in a two-body system\n", fontsize=14)
     # ax.legend(loc="upper left", fontsize=14)
 
-    anim = animation.FuncAnimation(fig, update, interval=50, repeat=False, fargs=(graphs, orbits))
-    anim.save('two_bodies.mp4')
-    anim.save('two_bodies.gif')
+    anim = animation.FuncAnimation(fig, update, interval=10, frames=400, repeat=False,
+                                   fargs=(ax, graphs, orbits, [scat]))
+    # anim.save('out/three_bodies.mp4')
+    anim.save('out/three_bodies.gif')
 
-    # plt.show()
+    plt.show()
 
 
 if __name__ == '__main__':
