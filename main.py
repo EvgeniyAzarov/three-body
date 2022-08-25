@@ -2,7 +2,6 @@ import scipy as sci
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import animation
 
 G = 6.67408e-11  # N-m2/kg2
@@ -15,7 +14,7 @@ t_nd = 79.91 * 365.25 * 24 * 3600  # s
 K1 = G * t_nd * m_nd / (r_nd ** 2 * v_nd)
 K2 = v_nd * t_nd / r_nd
 
-n = 3
+n = 4
 dim = 3
 bodies = np.empty(n,
                   dtype=[('pos', float, (dim,)),
@@ -24,34 +23,38 @@ bodies = np.empty(n,
                          ('color', float, (4,)),
                          ('size', float)])
 bodies['mass'] = np.array([
-    1.1,
+    100.1,
     0.907,
-    0.825
+    0.825,
+    0.7
 ])
 bodies['size'] = bodies['mass'] * 70
 
 bodies['color'] = [
     colors.to_rgba('darkblue'),
     colors.to_rgba('red'),
-    colors.to_rgba('green')
+    colors.to_rgba('green'),
+    colors.to_rgba('purple')
 ]
 
 bodies['pos'] = np.array([
     [-0.5, 1, 0],
     [0.5, 0, 0.5],
-    [0, 0.5, 0]
+    [0, 0.5, 0],
+    [0.5, 0.5, 0.5]
 ])
 r_com = bodies['mass'].dot(bodies['pos']) / bodies['mass'].sum()
 
 bodies['vel'] = np.array([
     [0.01, 0.01, 0],
     [-0.05, 0, -0.1],
-    [0, 0, 0]
+    [0, 0, 0],
+    [0.01, -0.01, 0.01]
 ])
 v_com = bodies['mass'].dot(bodies['vel']) / bodies['mass'].sum()
 
 
-def motion_ode(t, w, m, n=3, dim=3):
+def motion_ode(t, w, m, n, dim):
     r = w[: n * dim]
     v = w[n * dim:]
 
@@ -119,8 +122,6 @@ def main():
     scat = ax.scatter(*bodies['pos'].T, s=bodies['size'], c=bodies['color'], depthshade=False)
 
     orbits = w[:, :dim * n].reshape((-1, n, dim))
-
-    orbits_com = orbits.dot(bodies['mass']) / bodies['mass'].sum()
 
     # print(orbits.shape)
     # print(orbits_com.shape)
